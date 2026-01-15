@@ -51,13 +51,13 @@ def predict(text: str, model_name: str) -> dict | None:
     return postprocess(output[0], input_ids[0], tokenizer)
 
 def create():
-    with gr.TabItem("Masked Language Modeling"):
-        gr.Markdown("# Masked Language Modeling")
+    with gr.TabItem("掩码语言模型"):
+        gr.Markdown("# 掩码语言模型")
         with gr.Row():
             with gr.Column():
-                text = gr.Textbox(label="Input", lines=3)
-                model = gr.Dropdown(["bert-base-cased"], value="bert-base-cased", label="Model")
-                submit_btn = gr.Button("Submit", variant="primary")
+                text = gr.Textbox(label="输入文本", lines=3)
+                model = gr.Dropdown(["bert-base-cased"], value="bert-base-cased", label="模型")
+                submit_btn = gr.Button("提交", variant="primary")
                 examples = gr.Dataset(
                     components=[text],
                     samples=[
@@ -65,15 +65,15 @@ def create():
                         ["The goal of life is [MASK]."],
                         ["[MASK] is the largest planet in our solar system."],
                     ],
-                    label="Examples"
+                    label="示例"
                 )
 
             with gr.Column():
-                output = gr.Label(num_top_classes=5)
+                output = gr.Label(num_top_classes=5, label="预测结果")
 
     def validate_input(text: str, model: str) -> tuple[str, str]:
         if "[MASK]" not in text:
-            raise gr.Error("Input text must contain [MASK] for prediction.")
+            raise gr.Error("输入文本必须包含 [MASK] 以进行预测。")
         return text, model
 
     submit_btn.click(fn=predict, inputs=[text, model], outputs=output, validator=validate_input)

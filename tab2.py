@@ -118,16 +118,16 @@ def detect(image: np.ndarray | None, model_name: str) -> np.ndarray | None:
     return draw_results(image, boxes, scores, class_ids)
 
 def create():
-    with gr.TabItem("Object Detection"):
-        gr.Markdown("# Object Detection")
+    with gr.TabItem("目标检测"):
+        gr.Markdown("# 目标检测")
         with gr.Row():
             with gr.Column():
-                image = gr.Image(type="numpy", height=600)
-                model = gr.Dropdown(["yolov5s"], value="yolov5s", label="Model")
-                examples = gr.Examples("examples/detection", image)
+                image = gr.Image(type="numpy", height=600, label="输入图像")
+                model = gr.Dropdown(["yolov5s"], value="yolov5s", label="模型")
+                examples = gr.Examples("examples/detection", image, label="示例")
 
             with gr.Column():
-                output = gr.Image(type="numpy", height=560)
+                output = gr.Image(type="numpy", height=560, label="检测结果")
 
     image.change(fn=detect, inputs=[image, model], outputs=output)
     model.change(fn=detect, inputs=[image, model], outputs=output)

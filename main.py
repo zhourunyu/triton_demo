@@ -8,26 +8,26 @@ from clients import get_status, get_npu_metrics
 def status_text():
     triton_status, mindie_status = get_status()
     status_text = {
-        True: "🟢 Up",
-        False: "🔴 Down"
+        True: "🟢 在线",
+        False: "🔴 离线"
     }
-    status = f"Triton Server: {status_text[triton_status]} | MindIE Server: {status_text[mindie_status]}"
+    status = f"Triton: {status_text[triton_status]} | MindIE: {status_text[mindie_status]}"
     return status
 
 def npu_metrics_text():
     npu_metrics = get_npu_metrics()
     health_text = {
-        0: "🟢 Normal",
-        1: "🟡 Warning",
-        2: "🔴 Critical",
-        3: "🔴 Error",
+        0: "🟢 正常",
+        1: "🟡 警告",
+        2: "🔴 严重",
+        3: "🔴 错误",
     }
     health = npu_metrics.get("health", -1)
-    status = health_text.get(health, "❔ Unknown")
+    status = health_text.get(health, "❔ 未知")
     temp = npu_metrics.get("temperature", "N/A")
     mem_util = npu_metrics.get("memory_utilization", "N/A")
     aicore_util = npu_metrics.get("aicore_utilization", "N/A")
-    metrics = f"NPU: {status} | Temp: {temp}°C | Mem Util: {mem_util}% | AI Core Util: {aicore_util}%"
+    metrics = f"NPU: {status} | 温度: {temp}°C | 内存: {mem_util}% | AI Core: {aicore_util}%"
     return metrics
 
 def update_status_bar():
@@ -35,7 +35,7 @@ def update_status_bar():
     npu_metrics = npu_metrics_text()
     return f"{status}<br>{npu_metrics}"
 
-with gr.Blocks(analytics_enabled=False) as demo:
+with gr.Blocks(title="Triton服务演示", analytics_enabled=False) as demo:
     with gr.Tabs():
         tab1.create()
         tab2.create()

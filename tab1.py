@@ -58,16 +58,16 @@ def predict(image: np.ndarray | None, model_name: str) -> dict[str, float] | Non
     return postprocess(output[0])
 
 def create():
-    with gr.TabItem("Image Classification"):
-        gr.Markdown("# Image Classification")
+    with gr.TabItem("图像分类"):
+        gr.Markdown("# 图像分类")
         with gr.Row():
             with gr.Column():
-                image = gr.Image(type="numpy", height=300)
-                model = gr.Dropdown(["resnet50", "mobilenet_v2"], value="resnet50", label="Model")
-                examples = gr.Examples("examples/classification", image)
+                image = gr.Image(type="numpy", height=300, label="输入图像")
+                model = gr.Dropdown(["resnet50", "mobilenet_v2"], value="resnet50", label="模型")
+                examples = gr.Examples("examples/classification", image, label="示例")
 
             with gr.Column():
-                output = gr.Label(num_top_classes=5)
+                output = gr.Label(num_top_classes=5, label="分类结果")
 
     image.change(fn=predict, inputs=[image, model], outputs=output)
     model.change(fn=predict, inputs=[image, model], outputs=output)

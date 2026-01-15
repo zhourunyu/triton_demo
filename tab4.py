@@ -63,7 +63,7 @@ def chat(messages: list[dict[str, Any]], model: str) -> Iterator[list[dict[str, 
         if not thinking and reasoning_content:
             thinking = True
             thinking_start = time.time()
-            messages[-1]["metadata"] = {"title": "Thinking...", "duration": 0.0}
+            messages[-1]["metadata"] = {"title": "思考中...", "duration": 0.0}
 
         if thinking:
             messages[-1]["metadata"]["duration"] = time.time() - thinking_start
@@ -71,33 +71,33 @@ def chat(messages: list[dict[str, Any]], model: str) -> Iterator[list[dict[str, 
                 messages[-1]["content"] += reasoning_content
             if content:
                 thinking = False
-                messages[-1]["metadata"]["title"] = "Thoughts"
+                messages[-1]["metadata"]["title"] = "思考内容"
                 messages += [{"role": "assistant", "content": ""}]
 
         messages[-1]["content"] += content
         yield messages
 
 def create():
-    with gr.TabItem("Large Language Model"):
-        gr.Markdown("# Large Language Model")
+    with gr.TabItem("大语言模型"):
+        gr.Markdown("# 大语言模型")
 
-        chatbot = gr.Chatbot(height=500)
-        input = gr.Textbox(label="Input", lines=3)
+        chatbot = gr.Chatbot(height=500, label="对话记录")
+        input = gr.Textbox(label="输入", lines=3)
 
-        model = gr.Dropdown(["Qwen3-4B", "Qwen3-8B", "Qwen2.5-7B", "DeepSeek-R1-7B"], value="Qwen3-4B", label="Model")
+        model = gr.Dropdown(["Qwen3-4B", "Qwen3-8B", "Qwen2.5-7B", "DeepSeek-R1-7B"], value="Qwen3-4B", label="模型")
         with gr.Row():
-            submit_btn = gr.Button("Submit", variant="primary")
-            stop_btn = gr.Button("Stop", variant="stop")
-            clear_btn = gr.Button("Clear")
+            submit_btn = gr.Button("提交", variant="primary")
+            stop_btn = gr.Button("停止", variant="stop")
+            clear_btn = gr.Button("清除记录")
         examples = gr.Dataset(
             components=[input],
             samples=[
-                ["Which is bigger, 9.9 or 9.11?"],
-                ['How many "r"s are there in "strawberry"?'],
-                ["Explain the theory of relativity."],
-                ["Write a poem about the sea."],
+                ["9.9和9.11哪个更大？"],
+                ["strawberry中有多少个r？"],
+                ["解释相对论。"],
+                ["写一首关于大海的诗。"],
             ],
-            label="Examples"
+            label="示例"
         )
 
         # append user message
