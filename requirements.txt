@@ -3,4 +3,3 @@ numpy
 opencv-python-headless
 transformers
 tritonclient[http,grpc]
-openai

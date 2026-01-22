@@ -3,7 +3,7 @@ import gradio as gr
 import numpy as np
 from tritonclient.grpc import InferInput, InferRequestedOutput
 from clients import triton_client as client
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 
 # Get prediction results
 def postprocess(logits: np.ndarray, input_ids: np.ndarray, tokenizer) -> dict:
@@ -19,11 +19,11 @@ def postprocess(logits: np.ndarray, input_ids: np.ndarray, tokenizer) -> dict:
         results_dict[token] = float(probabilities[idx])
     return results_dict
 
-def predict(text: str, model_name: str) -> dict | None:
+async def predict(text: str, model_name: str) -> dict | None:
     if not text:
         return None
 
-    tokenizer = BertTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     input: dict[str, np.ndarray] = tokenizer(text, return_tensors="np",
         padding="max_length", max_length=32    # for ascendcl backend
     )
@@ -41,7 +41,7 @@ def predict(text: str, model_name: str) -> dict | None:
     inputs[2].set_data_from_numpy(token_type_ids)
     outputs = [InferRequestedOutput("output")]
 
-    result = client.infer(model_name, inputs=inputs, outputs=outputs)
+    result = await client().infer(model_name, inputs=inputs, outputs=outputs)
     if result is None:
         raise gr.Error("Inference request failed.")
     output: np.ndarray | None = result.as_numpy("output")

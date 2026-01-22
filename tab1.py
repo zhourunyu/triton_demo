@@ -37,7 +37,7 @@ def postprocess(output: np.ndarray) -> dict[str, float]:
 
     return results_dict
 
-def predict(image: np.ndarray | None, model_name: str) -> dict[str, float] | None:
+async def predict(image: np.ndarray | None, model_name: str) -> dict[str, float] | None:
     if image is None:
         return None
 
@@ -48,7 +48,7 @@ def predict(image: np.ndarray | None, model_name: str) -> dict[str, float] | Non
     inputs[0].set_data_from_numpy(input)
     outputs = [InferRequestedOutput("output")]
 
-    result = client.infer(model_name, inputs=inputs, outputs=outputs)
+    result = await client().infer(model_name, inputs=inputs, outputs=outputs)
     if result is None:
         raise gr.Error("Inference request failed.")
     output: np.ndarray | None = result.as_numpy("output")

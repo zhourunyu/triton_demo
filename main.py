@@ -5,17 +5,17 @@ import tab3
 import tab4
 from clients import get_status, get_npu_metrics
 
-def status_text():
-    triton_status, mindie_status = get_status()
+async def status_text():
+    triton_status = await get_status()
     status_text = {
         True: "🟢 在线",
         False: "🔴 离线"
     }
-    status = f"Triton: {status_text[triton_status]} | MindIE: {status_text[mindie_status]}"
+    status = f"Triton 服务: {status_text[triton_status]}"
     return status
 
-def npu_metrics_text():
-    npu_metrics = get_npu_metrics()
+async def npu_metrics_text():
+    npu_metrics = await get_npu_metrics()
     health_text = {
         0: "🟢 正常",
         1: "🟡 警告",
@@ -30,9 +30,9 @@ def npu_metrics_text():
     metrics = f"NPU: {status} | 温度: {temp}°C | 内存: {mem_util}% | AI Core: {aicore_util}%"
     return metrics
 
-def update_status_bar():
-    status = status_text()
-    npu_metrics = npu_metrics_text()
+async def update_status_bar():
+    status = await status_text()
+    npu_metrics = await npu_metrics_text()
     return f"{status}<br>{npu_metrics}"
 
 with gr.Blocks(title="Triton服务演示", analytics_enabled=False) as demo:
@@ -42,7 +42,7 @@ with gr.Blocks(title="Triton服务演示", analytics_enabled=False) as demo:
         tab3.create()
         tab4.create()
 
-    status_bar = gr.HTML(update_status_bar(), elem_classes="status-bar")
+    status_bar = gr.HTML("", elem_classes="status-bar")
 
     timer = gr.Timer(1)
     timer.tick(fn=update_status_bar, outputs=status_bar, show_progress_on=[])

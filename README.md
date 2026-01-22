@@ -1,6 +1,6 @@
 # Triton Demo
 
-Gradio demo for models served with Triton Inference Server and OpenAI API.
+Gradio demo for models served with Triton Inference Server.
 
 ## Usage
 
@@ -15,7 +15,6 @@ pip install -r requirements.txt
 ```bash
 export SERVER_ADDR=localhost
 export TRITON_PORT=8001
-export MINDIE_PORT=8080
 export METRICS_PORT=9000
 ```
 

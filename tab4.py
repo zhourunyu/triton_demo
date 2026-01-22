@@ -1,9 +1,20 @@
 # Large Language Model Tab
 import gradio as gr
 import time
-from clients import openai_client as client
-from typing import Iterator, Any
-from openai.types.chat import ChatCompletionMessageParam
+from tritonclient.grpc import InferInput, InferRequestedOutput
+from clients import triton_client as client
+import json
+import numpy as np
+from random import randint
+from transformers import AutoTokenizer, PreTrainedTokenizer
+from typing import Any, AsyncIterator
+
+TOKENIZER_NAMES = {
+    "Qwen3-4B": "Qwen/Qwen3-4B",
+    "Qwen3-8B": "Qwen/Qwen3-8B",
+    "Qwen2.5-7B": "Qwen/Qwen2.5-7B-Instruct",
+    "DeepSeek-R1-7B": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+}
 
 stopped = False
 
@@ -11,7 +22,7 @@ def stop_chat():
     global stopped
     stopped = True
 
-def convert_message(message: dict[str, Any]) -> ChatCompletionMessageParam:
+def process_message(message: dict[str, Any]) -> dict[str, Any]:
     role = message["role"]
     content = message["content"]
     if isinstance(content, list):
@@ -27,50 +38,107 @@ def convert_message(message: dict[str, Any]) -> ChatCompletionMessageParam:
         else:
             raise gr.Error(f"Unsupported content type: {content_type}")
     else:
-        raise gr.Error(f"Unsupported content format: {type(content)}")
+        raise gr.Error(f"Unsupported content: {content}")
 
-def chat(messages: list[dict[str, Any]], model: str) -> Iterator[list[dict[str, Any]]]:
+def build_request(
+    messages: list[dict[str, Any]],
+    model_name: str,
+    stream: bool = True,
+    max_tokens: int = 2048,
+    seed: int | None = None,
+    thinking: bool = True,
+) -> AsyncIterator[dict[str, Any]]:
+    # filter out 'thinking' messages
+    def is_thinking(message: dict[str, Any]) -> bool:
+        metadata = message["metadata"] or {}
+        return "title" in metadata
+    messages = list(filter(lambda msg: not is_thinking(msg), messages))
+    # preprocess messages
+    messages = [process_message(msg) for msg in messages]
+    # build prompt
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAMES[model_name])
+    prompt: str = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
+    )
+
+    inputs = []
+    prompt_data = np.array([prompt.encode("utf-8")], dtype=np.object_)
+    inputs.append(InferInput("text_input", [1], "BYTES"))
+    inputs[-1].set_data_from_numpy(prompt_data)
+
+    stream_data = np.array([stream], dtype=bool)
+    inputs.append(InferInput("stream", [1], "BOOL"))
+    inputs[-1].set_data_from_numpy(stream_data)
+
+    sampling_parameters = {
+        "max_tokens": max_tokens,
+        "seed": randint(0, 2**31 - 1) if seed is None else seed,
+    }
+    sampling_parameters_data = np.array(
+        [json.dumps(sampling_parameters).encode("utf-8")], dtype=np.object_
+    )
+    inputs.append(InferInput("sampling_parameters", [1], "BYTES"))
+    inputs[-1].set_data_from_numpy(sampling_parameters_data)
+
+    # Add requested outputs
+    outputs = []
+    outputs.append(InferRequestedOutput("text_output"))
+
+    async def request_iterator():
+        yield {
+            "model_name": model_name,
+            "inputs": inputs,
+            "outputs": outputs,
+            "parameters": sampling_parameters,
+        }
+
+    return request_iterator()
+
+async def chat(messages: list[dict[str, Any]], model: str) -> AsyncIterator[list[dict[str, Any]]]:
     if not messages:
         return
 
     global stopped
     stopped = False
 
-    # filter out 'thinking' messages
-    def is_thinking(message: dict[str, Any]) -> bool:
-        metadata = message.get("metadata", {}) or {}
-        return "title" in metadata
-
-    messages_converted = [convert_message(m) for m in messages if not is_thinking(m)]
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages_converted,
-        stream=True,
-    )
+    request = build_request(messages, model)
+    response = client().stream_infer(request)
+    if response is None:
+        raise gr.Error("Inference request failed.")
 
     messages += [{"role": "assistant", "content": ""}]
     thinking = False
     thinking_start = 0.0
-    for chunk in response:
+    async for (result, error) in response:
         if stopped:
-            response.close()
+            response.cancel()
             break
-        if len(chunk.choices) == 0:
+        if error:
+            raise gr.Error(f"Inference error: {error}")
+        if result is None:
             continue
 
-        content = chunk.choices[0].delta.content or ""
-        reasoning_content: str = getattr(chunk.choices[0].delta, "reasoning_content", "")
-        if not thinking and reasoning_content:
+        output = result.as_numpy("text_output")
+        if output is None:
+            raise gr.Error("Failed to get output from inference result.")
+        content: str = output[0].decode("utf-8")
+
+        if model.startswith("DeepSeek-R1") and thinking_start == 0.0:
+            # DeepSeek-R1 has <think> at the end of prompt
+            content = "<think>" + content
+
+        if not thinking and content.startswith("<think>"):
             thinking = True
             thinking_start = time.time()
+            content = content[len("<think>") :]
             messages[-1]["metadata"] = {"title": "思考中...", "duration": 0.0}
 
         if thinking:
             messages[-1]["metadata"]["duration"] = time.time() - thinking_start
-            if reasoning_content:
-                messages[-1]["content"] += reasoning_content
-            if content:
+            if "</think>" in content:
+                thinking_content, content = content.split("</think>", 1)
                 thinking = False
+                messages[-1]["content"] += thinking_content
                 messages[-1]["metadata"]["title"] = "思考内容"
                 messages += [{"role": "assistant", "content": ""}]
 
