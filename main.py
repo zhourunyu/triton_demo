@@ -11,7 +11,7 @@ async def status_text():
         True: "🟢 在线",
         False: "🔴 离线"
     }
-    status = f"Triton 服务: {status_text[triton_status]}"
+    status = f"服务状态： {status_text[triton_status]}"
     return status
 
 async def npu_metrics_text():
@@ -35,26 +35,23 @@ async def update_status_bar():
     npu_metrics = await npu_metrics_text()
     return f"{status}<br>{npu_metrics}"
 
-with gr.Blocks(title="Triton服务演示", analytics_enabled=False) as demo:
+with gr.Blocks(title="大小模型混合推理服务演示", analytics_enabled=False) as demo:
     with gr.Tabs():
         tab1.create()
         tab2.create()
         tab3.create()
         tab4.create()
 
-    status_bar = gr.HTML("", elem_classes="status-bar")
+    status_bar = gr.HTML(
+        html_template='<div style="text-align:center; color:gray; font-size:var(--size-4); border-top:1px solid lightgray; margin-top:var(--size-4); padding-top:var(--size-2);">${value}</div>'
+    )
 
     timer = gr.Timer(1)
     timer.tick(fn=update_status_bar, outputs=status_bar, show_progress_on=[])
 
 css = """
-.status-bar {
-    text-align: center;
-    font-size: var(--size-4);
-    border-top: 1px solid #ccc;
-    margin-top: var(--size-4);
-    padding-top: var(--size-2);
-    color: #666666;
+.progress-text {
+    display: none !important;
 }
 footer {
     display: none !important;

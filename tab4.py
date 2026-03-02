@@ -7,7 +7,7 @@ import json
 import numpy as np
 from random import randint
 from transformers import AutoTokenizer, PreTrainedTokenizer
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
 TOKENIZER_NAMES = {
     "Qwen3-4B": "Qwen/Qwen3-4B",
@@ -22,7 +22,7 @@ def stop_chat():
     global stopped
     stopped = True
 
-def process_message(message: dict[str, Any]) -> dict[str, Any]:
+def process_message(message: dict) -> dict:
     role = message["role"]
     content = message["content"]
     if isinstance(content, list):
@@ -41,25 +41,25 @@ def process_message(message: dict[str, Any]) -> dict[str, Any]:
         raise gr.Error(f"Unsupported content: {content}")
 
 def build_request(
-    messages: list[dict[str, Any]],
+    messages: list[dict],
+    tokenizer: PreTrainedTokenizer,
     model_name: str,
     stream: bool = True,
     max_tokens: int = 2048,
     seed: int | None = None,
     thinking: bool = True,
-) -> AsyncIterator[dict[str, Any]]:
+) -> AsyncIterator[dict]:
     # filter out 'thinking' messages
-    def is_thinking(message: dict[str, Any]) -> bool:
+    def is_thinking(message: dict) -> bool:
         metadata = message["metadata"] or {}
         return "title" in metadata
     messages = list(filter(lambda msg: not is_thinking(msg), messages))
     # preprocess messages
     messages = [process_message(msg) for msg in messages]
     # build prompt
-    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAMES[model_name])
     prompt: str = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True, enable_thinking=thinking
-    )
+    ) # type: ignore
 
     inputs = []
     prompt_data = np.array([prompt.encode("utf-8")], dtype=np.object_)
@@ -94,21 +94,33 @@ def build_request(
 
     return request_iterator()
 
-async def chat(messages: list[dict[str, Any]], model: str) -> AsyncIterator[list[dict[str, Any]]]:
+def build_stats(ttft: float, token_count: int, first_token_time: float) -> str:
+    if ttft == 0.0:
+        return ""
+    throughput = token_count / (time.time() - first_token_time) if token_count > 1 else 0.0
+    return f"首token用时: {ttft:.2f}s | {throughput:.2f} token/s ({token_count} tokens)"
+
+async def chat(messages: list[dict], model: str) -> AsyncIterator[tuple[list[dict], str]]:
     if not messages:
         return
 
     global stopped
     stopped = False
 
-    request = build_request(messages, model)
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAMES[model])
+    request = build_request(messages, tokenizer, model)
+
+    start_time = time.time()
+    first_token_time = 0.0
+    ttft = 0.0
+    output_token_count = 0
     response = client().stream_infer(request)
     if response is None:
         raise gr.Error("Inference request failed.")
 
     messages += [{"role": "assistant", "content": ""}]
     thinking = False
-    thinking_start = 0.0
+    thinking_start_time = 0.0
     async for (result, error) in response:
         if stopped:
             response.cancel()
@@ -123,18 +135,27 @@ async def chat(messages: list[dict[str, Any]], model: str) -> AsyncIterator[list
             raise gr.Error("Failed to get output from inference result.")
         content: str = output[0].decode("utf-8")
 
-        if model.startswith("DeepSeek-R1") and thinking_start == 0.0:
+        if content:
+            # record first token time
+            if first_token_time == 0.0:
+                first_token_time = time.time()
+                ttft = first_token_time - start_time
+
+            # accumulate token count
+            output_token_count += len(tokenizer.encode(content, add_special_tokens=False))
+
+        if model.startswith("DeepSeek-R1") and thinking_start_time == 0.0:
             # DeepSeek-R1 has <think> at the end of prompt
             content = "<think>" + content
 
         if not thinking and content.startswith("<think>"):
             thinking = True
-            thinking_start = time.time()
+            thinking_start_time = time.time()
             content = content[len("<think>") :]
             messages[-1]["metadata"] = {"title": "思考中...", "duration": 0.0}
 
         if thinking:
-            messages[-1]["metadata"]["duration"] = time.time() - thinking_start
+            messages[-1]["metadata"]["duration"] = time.time() - thinking_start_time
             if "</think>" in content:
                 thinking_content, content = content.split("</think>", 1)
                 thinking = False
@@ -143,13 +164,14 @@ async def chat(messages: list[dict[str, Any]], model: str) -> AsyncIterator[list
                 messages += [{"role": "assistant", "content": ""}]
 
         messages[-1]["content"] += content
-        yield messages
+        yield messages, build_stats(ttft, output_token_count, first_token_time)
 
 def create():
     with gr.TabItem("大语言模型"):
         gr.Markdown("# 大语言模型")
 
         chatbot = gr.Chatbot(height=500, label="对话记录")
+        stats = gr.HTML(html_template='<div style="text-align:right; color:gray; font-size:var(--size-3); padding:2px 4px;">${value}</div>')
         input = gr.Textbox(label="输入", lines=3)
 
         model = gr.Dropdown(["Qwen3-4B", "Qwen3-8B", "Qwen2.5-7B", "DeepSeek-R1-7B"], value="Qwen3-4B", label="模型")
@@ -172,13 +194,13 @@ def create():
         append_message = lambda input, messages: messages + [{"role": "user", "content": input}]
 
         input.submit(append_message, [input, chatbot], [chatbot], queue=False).then(lambda: "", None, input, queue=False).then(
-            chat, [chatbot, model], [chatbot]
+            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
         )
         submit_btn.click(append_message, [input, chatbot], [chatbot], queue=False).then(lambda: "", None, input, queue=False).then(
-            chat, [chatbot, model], [chatbot]
+            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
         )
         examples.click(lambda example: [{"role": "user", "content": example}], [examples], [chatbot], queue=False).then(
-            chat, [chatbot, model], [chatbot]
+            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
         )
-        clear_btn.click(lambda: None, None, chatbot, queue=False)
+        clear_btn.click(lambda: (None, ""), None, [chatbot, stats], queue=False)
         stop_btn.click(stop_chat, None, None, queue=False)
