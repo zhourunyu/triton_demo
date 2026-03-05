@@ -129,5 +129,5 @@ def create():
             with gr.Column():
                 output = gr.Image(type="numpy", height=560, label="检测结果")
 
-    image.change(fn=detect, inputs=[image, model], outputs=output)
-    model.change(fn=detect, inputs=[image, model], outputs=output)
+    image.change(detect, inputs=[image, model], outputs=output)
+    model.change(detect, inputs=[image, model], outputs=output)

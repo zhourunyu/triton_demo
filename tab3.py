@@ -76,6 +76,6 @@ def create():
             raise gr.Error("输入文本必须包含 [MASK] 以进行预测。")
         return text, model
 
-    submit_btn.click(fn=predict, inputs=[text, model], outputs=output, validator=validate_input)
-    model.change(fn=predict, inputs=[text, model], outputs=output)
-    examples.click(lambda x: x[0], examples, text, queue=False).then(predict, [text, model], output)
+    submit_btn.click(predict, inputs=[text, model], outputs=output, validator=validate_input)
+    model.change(predict, inputs=[text, model], outputs=output)
+    examples.click(lambda x: x[0], inputs=examples, outputs=text).then(predict, inputs=[text, model], outputs=output)

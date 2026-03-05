@@ -48,6 +48,7 @@ with gr.Blocks(title="大小模型混合推理服务演示", analytics_enabled=F
 
     timer = gr.Timer(1)
     timer.tick(fn=update_status_bar, outputs=status_bar, show_progress_on=[])
+demo.queue(default_concurrency_limit=None)
 
 css = """
 .progress-text {

@@ -182,10 +182,10 @@ def create():
         examples = gr.Dataset(
             components=[input],
             samples=[
-                ["9.9和9.11哪个更大？"],
-                ["strawberry中有多少个r？"],
-                ["解释相对论。"],
-                ["写一首关于大海的诗。"],
+                ["自主着陆的注意事项有哪些？"],
+                ["液压系统b系统失效如何处理？"],
+                ["波音飞机多重？"],
+                ["无人机如何实现自主避障？"],
             ],
             label="示例"
         )
@@ -193,14 +193,22 @@ def create():
         # append user message
         append_message = lambda input, messages: messages + [{"role": "user", "content": input}]
 
-        input.submit(append_message, [input, chatbot], [chatbot], queue=False).then(lambda: "", None, input, queue=False).then(
-            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
+        (
+            # update chat history
+            input.submit(append_message, inputs=[input, chatbot], outputs=chatbot)
+            # clear input box
+            .then(lambda: "", outputs=input)
+            # call chat function
+            .then(chat, inputs=[chatbot, model], outputs=[chatbot, stats], show_progress_on=chatbot)
         )
-        submit_btn.click(append_message, [input, chatbot], [chatbot], queue=False).then(lambda: "", None, input, queue=False).then(
-            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
+        (
+            submit_btn.click(append_message, inputs=[input, chatbot], outputs=chatbot)
+            .then(lambda: "", outputs=input)
+            .then(chat, inputs=[chatbot, model], outputs=[chatbot, stats], show_progress_on=chatbot)
         )
-        examples.click(lambda example: [{"role": "user", "content": example}], [examples], [chatbot], queue=False).then(
-            chat, [chatbot, model], [chatbot, stats], show_progress_on=[chatbot]
+        (
+            examples.click(append_message, inputs=[examples, chatbot], outputs=chatbot)
+            .then(chat, inputs=[chatbot, model], outputs=[chatbot, stats], show_progress_on=chatbot)
         )
-        clear_btn.click(lambda: (None, ""), None, [chatbot, stats], queue=False)
-        stop_btn.click(stop_chat, None, None, queue=False)
+        clear_btn.click(lambda: (None, ""), outputs=[chatbot, stats])
+        stop_btn.click(stop_chat)

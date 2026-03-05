@@ -69,5 +69,5 @@ def create():
             with gr.Column():
                 output = gr.Label(num_top_classes=5, label="分类结果")
 
-    image.change(fn=predict, inputs=[image, model], outputs=output)
-    model.change(fn=predict, inputs=[image, model], outputs=output)
+    image.change(predict, inputs=[image, model], outputs=output)
+    model.change(predict, inputs=[image, model], outputs=output)
