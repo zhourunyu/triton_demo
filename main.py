@@ -3,7 +3,7 @@ import tab1
 import tab2
 import tab3
 import tab4
-from clients import get_status, get_npu_metrics
+from clients import get_status, get_metrics
 
 async def status_text():
     triton_status = await get_status()
@@ -14,26 +14,25 @@ async def status_text():
     status = f"服务状态： {status_text[triton_status]}"
     return status
 
-async def npu_metrics_text():
-    npu_metrics = await get_npu_metrics()
-    health_text = {
+async def metrics_text():
+    metrics = await get_metrics()
+    device = metrics.get("name", "设备")
+    state_text = {
         0: "🟢 正常",
-        1: "🟡 警告",
-        2: "🔴 严重",
-        3: "🔴 错误",
+        1: "🔴 错误",
     }
-    health = npu_metrics.get("health", -1)
-    status = health_text.get(health, "❔ 未知")
-    temp = npu_metrics.get("temperature", "N/A")
-    mem_util = npu_metrics.get("memory_utilization", "N/A")
-    aicore_util = npu_metrics.get("aicore_utilization", "N/A")
-    metrics = f"NPU: {status} | 温度: {temp}°C | 内存: {mem_util}% | AI Core: {aicore_util}%"
+    state = metrics.get("state", -1)
+    status = state_text.get(state, "❔ 未知")
+    temp = metrics.get("temperature", "N/A")
+    mem_util = metrics.get("memory_utilization", "N/A")
+    util = metrics.get("utilization", "N/A")
+    metrics = f"{device}: {status} | 温度: {temp}°C | 内存: {mem_util}% | 利用率: {util}%"
     return metrics
 
 async def update_status_bar():
     status = await status_text()
-    npu_metrics = await npu_metrics_text()
-    return f"{status}<br>{npu_metrics}"
+    metrics = await metrics_text()
+    return f"{status}<br>{metrics}"
 
 with gr.Blocks(title="大小模型混合推理服务演示", analytics_enabled=False) as demo:
     with gr.Tabs():
