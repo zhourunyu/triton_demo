@@ -10,6 +10,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizer
 from typing import AsyncIterator
 
 TOKENIZER_NAMES = {
+    "Qwen3.5-4B": "Qwen/Qwen3.5-4B",
+    "Qwen3.5-9B": "Qwen/Qwen3.5-9B",
     "Qwen3-4B": "Qwen/Qwen3-4B",
     "Qwen3-8B": "Qwen/Qwen3-8B",
     "Qwen2.5-7B": "Qwen/Qwen2.5-7B-Instruct",
@@ -174,7 +176,7 @@ def create():
         stats = gr.HTML(html_template='<div style="text-align:right; color:gray; font-size:var(--size-3); padding:2px 4px;">${value}</div>')
         input = gr.Textbox(label="输入", lines=3)
 
-        model = gr.Dropdown(["Qwen3-4B", "Qwen3-8B", "Qwen2.5-7B", "DeepSeek-R1-7B"], value="Qwen3-4B", label="模型")
+        model = gr.Dropdown(["Qwen3-4B", "Qwen3-8B", "Qwen3.5-4B", "Qwen3.5-9B", "Qwen2.5-7B", "DeepSeek-R1-7B"], value="Qwen3-4B", label="模型")
         with gr.Row():
             submit_btn = gr.Button("提交", variant="primary")
             stop_btn = gr.Button("停止", variant="stop")
