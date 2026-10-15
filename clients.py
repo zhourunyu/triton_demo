@@ -41,6 +41,7 @@ async def get_metrics() -> dict:
                         return {
                             "name": metrics.get("name"),
                             "state": 0 if metrics.get("health") == 0 else 1,
+                            "power": metrics.get("power"),
                             "temperature": metrics.get("temperature"),
                             "memory_utilization": metrics.get("memory_utilization"),
                             "utilization": metrics.get("aicore_utilization"),
@@ -49,6 +50,7 @@ async def get_metrics() -> dict:
                         return {
                             "name": metrics.get("name"),
                             "state": 0 if metrics.get("state") >= 0 else 1,
+                            "power": metrics.get("power"),
                             "temperature": metrics.get("temperature"),
                             "memory_utilization": metrics.get("memory_utilization"),
                             "utilization": metrics.get("gpu_utilization"),

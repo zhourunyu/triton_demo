@@ -23,10 +23,11 @@ async def metrics_text():
     }
     state = metrics.get("state", -1)
     status = state_text.get(state, "❔ 未知")
+    power = metrics.get("power", "N/A")
     temp = metrics.get("temperature", "N/A")
     mem_util = metrics.get("memory_utilization", "N/A")
     util = metrics.get("utilization", "N/A")
-    metrics = f"{device}: {status} | 温度: {temp}°C | 内存: {mem_util}% | 利用率: {util}%"
+    metrics = f"{device}: {status} | 温度: {temp}°C | 功率: {power}W | 内存: {mem_util}% | 利用率: {util}%"
     return metrics
 
 async def update_status_bar():
